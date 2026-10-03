@@ -31,123 +31,60 @@ echo "Installing / verifying dependencies..."
 echo "Ensuring Playwright Chromium is installed..."
 "$PY" -m playwright install chromium
 
-# 3. Helper functions to register agent skills & MCP
+## 3. Helper function to register MCP config
+set_mcp_config() {
+    local config_file="$1"
+    mkdir -p "$(dirname "$config_file")"
+    "$PY" -c "
+import json
+from pathlib import Path
+p = Path('$config_file')
+data = json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {'mcpServers': {}}
+data.setdefault('mcpServers', {})['upel'] = {'command': '$PY', 'args': ['$REPO_DIR/server.py']}
+p.write_text(json.dumps(data, indent=2))
+"
+    echo "   Configured MCP server in: $config_file"
+}
+
 register_antigravity() {
     local target_dir="$HOME/.gemini/config"
     echo "-> Installing for Antigravity / Gemini CLI in $target_dir..."
     mkdir -p "$target_dir/skills/upel"
     cp "$REPO_DIR/skills/upel/SKILL.md" "$target_dir/skills/upel/SKILL.md"
-
-    local mcp_config="$target_dir/mcp_config.json"
-    if [ ! -f "$mcp_config" ]; then
-        echo '{"mcpServers":{}}' > "$mcp_config"
-    fi
-
-    "$PY" -c "
-import json
-from pathlib import Path
-p = Path('$mcp_config')
-data = json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {'mcpServers': {}}
-data.setdefault('mcpServers', {})['upel'] = {
-    'command': '$PY',
-    'args': ['$REPO_DIR/server.py']
-}
-p.write_text(json.dumps(data, indent=2))
-"
+    set_mcp_config "$target_dir/mcp_config.json"
     echo "   Installed skill to: $target_dir/skills/upel/SKILL.md"
-    echo "   Configured MCP server in: $mcp_config"
 }
 
 register_claude_desktop() {
-    local claude_dir=""
-    if [ "$(uname)" = "Darwin" ]; then
-        claude_dir="$HOME/Library/Application Support/Claude"
-    else
-        claude_dir="$HOME/.config/Claude"
-    fi
-    mkdir -p "$claude_dir"
-    local config_file="$claude_dir/claude_desktop_config.json"
-    echo "-> Installing for Claude Desktop in $config_file..."
-
-    "$PY" -c "
-import json
-from pathlib import Path
-p = Path('$config_file')
-data = json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {'mcpServers': {}}
-data.setdefault('mcpServers', {})['upel'] = {
-    'command': '$PY',
-    'args': ['$REPO_DIR/server.py']
-}
-p.write_text(json.dumps(data, indent=2))
-"
-    echo "   Configured MCP server in: $config_file"
+    local claude_dir="$HOME/.config/Claude"
+    [ "$(uname)" = "Darwin" ] && claude_dir="$HOME/Library/Application Support/Claude"
+    echo "-> Installing for Claude Desktop..."
+    set_mcp_config "$claude_dir/claude_desktop_config.json"
 }
 
 register_cursor() {
-    local cursor_dir="$HOME/.cursor"
-    mkdir -p "$cursor_dir"
-    local config_file="$cursor_dir/mcp.json"
-    echo "-> Installing for Cursor in $config_file..."
-
-    "$PY" -c "
-import json
-from pathlib import Path
-p = Path('$config_file')
-data = json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {'mcpServers': {}}
-data.setdefault('mcpServers', {})['mcpServers'] = data.get('mcpServers', {})
-data['mcpServers']['upel'] = {
-    'command': '$PY',
-    'args': ['$REPO_DIR/server.py']
-}
-p.write_text(json.dumps(data, indent=2))
-"
-    echo "   Configured MCP server in: $config_file"
+    echo "-> Installing for Cursor..."
+    set_mcp_config "$HOME/.cursor/mcp.json"
 }
 
 register_kiro() {
     local kiro_dir="$HOME/.kiro"
-    local settings_dir="$kiro_dir/settings"
-    local agents_dir="$kiro_dir/agents"
-    mkdir -p "$settings_dir" "$agents_dir"
-    local mcp_config="$settings_dir/mcp.json"
     echo "-> Installing for Kiro / kiro-chat..."
+    set_mcp_config "$kiro_dir/settings/mcp.json"
 
+    local agent_path="$kiro_dir/agents/upel.json"
+    mkdir -p "$kiro_dir/agents"
     "$PY" -c "
 import json
 from pathlib import Path
-
-# 1. Update settings/mcp.json
-p = Path('$mcp_config')
-data = json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {'mcpServers': {}}
-data.setdefault('mcpServers', {})['upel'] = {
-    'command': '$PY',
-    'args': ['$REPO_DIR/server.py']
-}
-p.write_text(json.dumps(data, indent=2))
-
-# 2. Create specialized kiro agent ~/.kiro/agents/upel.json
-agent_path = Path('$agents_dir/upel.json')
 agent_cfg = {
     'name': 'upel',
-    'description': 'AGH UPeL (Moodle) learning platform assistant',
-    'prompt': 'You have access to the UPeL MCP server (read-only against UPeL). Always check session via upel_check_session first. When downloading task contents, ask for destination path (defaulting to ./<course_name_with_underscores>/) and save clean .md files with no spaces in filenames.',
-    'mcpServers': {
-        'upel': {
-            'command': '$PY',
-            'args': ['$REPO_DIR/server.py']
-        }
-    },
-    'tools': [
-        'read',
-        'write',
-        'shell',
-        '@upel'
-    ]
+    'description': 'AGH UPeL assistant',
+    'mcpServers': {'upel': {'command': '$PY', 'args': ['$REPO_DIR/server.py']}},
+    'tools': ['read', 'write', 'shell', '@upel']
 }
-agent_path.write_text(json.dumps(agent_cfg, indent=2))
-"
-    echo "   Configured MCP server in: $mcp_config"
-    echo "   Created Kiro agent in: $agents_dir/upel.json"
+Path('$agent_path').write_text(json.dumps(agent_cfg, indent=2))
+    echo "   Created Kiro agent in: $agent_path"
 }
 
 register_workspace() {

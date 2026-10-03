@@ -9,6 +9,9 @@ from auth import load_session
 BASE_URL = "https://upel.agh.edu.pl"
 ALLOWED_HOST = "upel.agh.edu.pl"
 
+def _slug(text: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9_\-\.]+', '_', text).strip('_')
+
 class UpelClient:
     def __init__(self, session_cookie: str | None = None):
         self.reload_session(session_cookie)
@@ -41,7 +44,13 @@ class UpelClient:
         match = re.search(r'["\']sesskey["\']:\s*["\']([^"\']+)["\']', html)
         return match.group(1) if match else None
 
+    def _ensure_session(self):
+        latest = load_session()
+        if latest != self.cookie:
+            self.reload_session(latest)
+
     def check_session(self) -> dict:
+        self.reload_session()
         if not self.cookie:
             return {"authenticated": False, "error": "No session cookie found. Run 'pyenv/bin/python auth.py'."}
 
@@ -55,6 +64,7 @@ class UpelClient:
         return {"authenticated": True, "user": username}
 
     def list_courses(self) -> list[dict]:
+        self._ensure_session()
         resp = self.client.get(f"{BASE_URL}/my/courses.php")
         self._ensure_authenticated(resp)
 
@@ -89,6 +99,7 @@ class UpelClient:
         if not isinstance(course_id, int) or course_id <= 0:
             raise ValueError(f"Invalid course_id: {course_id}. Must be a positive integer.")
 
+        self._ensure_session()
         resp = self.client.get(f"{BASE_URL}/course/view.php?id={course_id}")
         self._ensure_authenticated(resp)
 
@@ -142,6 +153,7 @@ class UpelClient:
         url = page_id_or_url if str(page_id_or_url).startswith("http") else f"{BASE_URL}/mod/page/view.php?id={page_id_or_url}"
         self._validate_upel_url(str(url))
 
+        self._ensure_session()
         resp = self.client.get(url)
         self._ensure_authenticated(resp)
 
@@ -159,8 +171,7 @@ class UpelClient:
                 continue
             alt = img.get("alt", "Diagram")
             parsed_src = urlparse(src)
-            clean_filename = Path(parsed_src.path).name or "image.png"
-            clean_filename = re.sub(r'[^a-zA-Z0-9_\-\.]+', '_', clean_filename)
+            clean_filename = _slug(Path(parsed_src.path).name) or "image.png"
             images.append({"url": src, "alt": alt, "suggested_filename": clean_filename})
             img.replace_with(f"\n\n![{alt}](images/{clean_filename})\n\n")
 
@@ -175,7 +186,7 @@ class UpelClient:
         body_text = re.sub(r'\n{3,}', '\n\n', body_text)
 
         # Suggested filename with no spaces
-        clean_title = re.sub(r'[^a-zA-Z0-9_\-]+', '_', title.strip()).strip('_').lower()
+        clean_title = _slug(title).lower()
         suggested_filename = f"{clean_title}.md" if clean_title else "page.md"
 
         return {
@@ -190,6 +201,7 @@ class UpelClient:
         if not isinstance(assign_id, int) or assign_id <= 0:
             raise ValueError(f"Invalid assign_id: {assign_id}. Must be a positive integer.")
 
+        self._ensure_session()
         url = f"{BASE_URL}/mod/assign/view.php?id={assign_id}"
         resp = self.client.get(url)
         self._ensure_authenticated(resp)
@@ -219,14 +231,14 @@ class UpelClient:
     def read_file(self, file_url: str) -> dict:
         """Pure read operation: downloads resource into memory as base64 without writing to disk."""
         self._validate_upel_url(file_url)
+        self._ensure_session()
         resp = self.client.get(file_url)
         self._ensure_authenticated(resp)
         resp.raise_for_status()
 
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
         parsed = urlparse(file_url)
-        filename = Path(parsed.path).name or "downloaded_file"
-        clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]+', '_', filename)
+        clean_name = _slug(Path(parsed.path).name) or "downloaded_file"
 
         return {
             "filename": clean_name,

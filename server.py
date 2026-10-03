@@ -10,16 +10,35 @@ def upel_check_session() -> dict:
     return client.check_session()
 
 @mcp.tool()
-def upel_login() -> str:
-    """Launch interactive browser window for AGH SSO login and save new MoodleSession."""
-    try:
-        from auth import login_browser
-        login_browser()
-        client.reload_session()
-        res = client.check_session()
-        return f"Authenticated successfully: {res.get('user', 'OK')}"
-    except Exception as e:
-        return f"Login failed: {e}"
+def upel_login(cookie: str | None = None) -> str:
+    """Authenticate with AGH UPeL.
+
+    Args:
+        cookie: Optional MoodleSession cookie value (for headless servers, remote SSH, or manual token entry).
+                If omitted, opens an interactive browser window on the desktop.
+    """
+    if cookie and cookie.strip():
+        from auth import save_session
+        save_session(cookie.strip())
+    else:
+        try:
+            import subprocess
+            import sys
+            from pathlib import Path
+
+            auth_script = Path(__file__).parent / "auth.py"
+            res = subprocess.run([sys.executable, str(auth_script)], capture_output=True, text=True)
+            if res.returncode != 0:
+                err = (res.stderr or res.stdout or "").strip()
+                return f"Login failed: {err}" if err else f"Login failed (exit code {res.returncode})"
+        except Exception as e:
+            return f"Login failed: {e}"
+
+    client.reload_session()
+    check_res = client.check_session()
+    if check_res.get("authenticated"):
+        return f"Authenticated successfully: {check_res.get('user', 'OK')}"
+    return f"Login completed, but session check failed: {check_res.get('error', 'Unknown error')}"
 
 @mcp.tool()
 def upel_list_courses() -> list[dict]:

@@ -87,10 +87,30 @@ def test_live_read_operations():
         assert "suggested_filename" in page
         assert " " not in page["suggested_filename"]  # No spaces in filename
 
+def test_session_reloading():
+    original = SESSION_FILE.read_text() if SESSION_FILE.exists() else None
+    try:
+        # Client initialized with dummy cookie
+        client = UpelClient("old_stale_cookie")
+        assert client.cookie == "old_stale_cookie"
+
+        # Simulating external login saving session
+        test_cookie = "newly_saved_session_cookie"
+        save_session(test_cookie)
+
+        # _ensure_session should detect updated session file
+        client._ensure_session()
+        assert client.cookie == test_cookie
+    finally:
+        if original is not None:
+            SESSION_FILE.write_text(original)
+            SESSION_FILE.chmod(0o600)
+
 if __name__ == "__main__":
     test_auth_permissions_and_roundtrip()
     test_security_url_validation()
     test_input_validation()
     test_read_only_mcp_tools()
+    test_session_reloading()
     test_live_read_operations()
     print("All read-only tests and checks passed!")
