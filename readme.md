@@ -26,6 +26,7 @@ cd upelmcp
    - **Antigravity / Gemini CLI** (`~/.gemini/config/skills/upel/`, `~/.gemini/config/mcp_config.json`)
    - **Claude Desktop** (`claude_desktop_config.json`)
    - **Cursor** (`~/.cursor/mcp.json`)
+   - **Kiro / kiro-chat** (`~/.kiro/settings/mcp.json`, `~/.kiro/agents/upel.json`)
    - **Workspace local** (`.agent/skills/upel/`)
    - **All supported agents**
 5. Installs the **skill only** to the selected agent's skills directory.

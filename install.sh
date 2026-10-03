@@ -104,6 +104,52 @@ p.write_text(json.dumps(data, indent=2))
     echo "   Configured MCP server in: $config_file"
 }
 
+register_kiro() {
+    local kiro_dir="$HOME/.kiro"
+    local settings_dir="$kiro_dir/settings"
+    local agents_dir="$kiro_dir/agents"
+    mkdir -p "$settings_dir" "$agents_dir"
+    local mcp_config="$settings_dir/mcp.json"
+    echo "-> Installing for Kiro / kiro-chat..."
+
+    "$PY" -c "
+import json
+from pathlib import Path
+
+# 1. Update settings/mcp.json
+p = Path('$mcp_config')
+data = json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {'mcpServers': {}}
+data.setdefault('mcpServers', {})['upel'] = {
+    'command': '$PY',
+    'args': ['$REPO_DIR/server.py']
+}
+p.write_text(json.dumps(data, indent=2))
+
+# 2. Create specialized kiro agent ~/.kiro/agents/upel.json
+agent_path = Path('$agents_dir/upel.json')
+agent_cfg = {
+    'name': 'upel',
+    'description': 'AGH UPeL (Moodle) learning platform assistant',
+    'prompt': 'You have access to the UPeL MCP server (read-only against UPeL). Always check session via upel_check_session first. When downloading task contents, ask for destination path (defaulting to ./<course_name_with_underscores>/) and save clean .md files with no spaces in filenames.',
+    'mcpServers': {
+        'upel': {
+            'command': '$PY',
+            'args': ['$REPO_DIR/server.py']
+        }
+    },
+    'tools': [
+        'read',
+        'write',
+        'shell',
+        '@upel'
+    ]
+}
+agent_path.write_text(json.dumps(agent_cfg, indent=2))
+"
+    echo "   Configured MCP server in: $mcp_config"
+    echo "   Created Kiro agent in: $agents_dir/upel.json"
+}
+
 register_workspace() {
     echo "-> Installing workspace skill in current directory (.agent/)..."
     mkdir -p "$PWD/.agent/skills/upel"
@@ -120,9 +166,10 @@ if [ -z "$AGENT_CHOICE" ]; then
     echo "  1) Antigravity / Gemini CLI"
     echo "  2) Claude Desktop"
     echo "  3) Cursor"
-    echo "  4) Workspace local (.agent/)"
-    echo "  5) All supported agents detected"
-    read -rp "Enter choice [1-5]: " AGENT_CHOICE
+    echo "  4) Kiro / kiro-chat"
+    echo "  5) Workspace local (.agent/)"
+    echo "  6) All supported agents detected"
+    read -rp "Enter choice [1-6]: " AGENT_CHOICE
 fi
 
 case "$AGENT_CHOICE" in
@@ -135,13 +182,17 @@ case "$AGENT_CHOICE" in
     3|cursor)
         register_cursor
         ;;
-    4|workspace|local)
+    4|kiro|kiro-chat)
+        register_kiro
+        ;;
+    5|workspace|local)
         register_workspace
         ;;
-    5|all)
+    6|all)
         register_antigravity
         register_claude_desktop
         register_cursor
+        register_kiro
         register_workspace
         ;;
     *)
@@ -154,5 +205,25 @@ echo ""
 echo "=========================================================="
 echo " Installation Complete!"
 echo " Python environment & MCP server live in: $REPO_DIR"
-echo " Initial auth: $PY $REPO_DIR/auth.py"
+echo "=========================================================="
+echo ""
+echo " What this does:"
+echo "   Connects your AI agent to AGH UPeL (Moodle) with read-only access"
+echo "   to list courses, inspect exercises, and download task instructions"
+echo "   into clean, space-free .md files with diagrams."
+echo ""
+echo " How to use it with your agent:"
+echo "   1. Restart or reload your AI agent / IDE (Antigravity, Claude, Cursor, or Kiro)"
+echo "      so it picks up the newly configured tools and skill."
+echo ""
+echo "   2. Ask your agent in chat using natural language:"
+echo "      - 'List my courses on UPeL'"
+echo "      - 'Show me exercises in course 1060'"
+echo "      - 'Download all tasks for Operating Systems into markdown'"
+echo ""
+echo "   3. Automatic Authentication:"
+echo "      On your first request, the agent will automatically detect if"
+echo "      you are not logged in and open an AGH SSO login browser window."
+echo "      (You can also log in manually right now by running:"
+echo "       $PY $REPO_DIR/auth.py)"
 echo "=========================================================="
