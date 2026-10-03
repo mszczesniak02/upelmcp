@@ -34,6 +34,20 @@ cd upelmcp
 
 ---
 
+## Recommended: Kiro CLI
+
+For users who do not already have an AI agent configured, **[Kiro CLI](https://kiro.dev)** is the recommended standalone client. It works seamlessly out of the box on the free tier using standard lightweight models, offering a fast, responsive, and distraction-free terminal workflow.
+
+Selecting Kiro during `./install.sh` automatically registers a dedicated agent profile at `~/.kiro/agents/upel.json` with all necessary MCP tool bindings. Once installed, simply launch the assistant:
+
+```bash
+kiro-cli --agent upel
+```
+
+![UPeL Assistant in Kiro CLI](assets/demo.png)
+
+---
+
 ## 2. Authentication
 
 Authenticate once via AGH SSO:
