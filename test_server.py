@@ -107,10 +107,16 @@ def test_session_reloading():
             SESSION_FILE.chmod(0o600)
 
 if __name__ == "__main__":
-    test_auth_permissions_and_roundtrip()
-    test_security_url_validation()
-    test_input_validation()
-    test_read_only_mcp_tools()
-    test_session_reloading()
-    test_live_read_operations()
-    print("All read-only tests and checks passed!")
+    saved_initial = SESSION_FILE.read_text() if SESSION_FILE.exists() else None
+    try:
+        test_auth_permissions_and_roundtrip()
+        test_security_url_validation()
+        test_input_validation()
+        test_read_only_mcp_tools()
+        test_session_reloading()
+        test_live_read_operations()
+        print("All read-only tests and checks passed!")
+    finally:
+        if saved_initial is not None:
+            SESSION_FILE.write_text(saved_initial)
+            SESSION_FILE.chmod(0o600)

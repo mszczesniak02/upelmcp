@@ -84,6 +84,7 @@ agent_cfg = {
     'tools': ['read', 'write', 'shell', '@upel']
 }
 Path('$agent_path').write_text(json.dumps(agent_cfg, indent=2))
+"
     echo "   Created Kiro agent in: $agent_path"
 }
 
