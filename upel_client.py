@@ -327,3 +327,81 @@ class UpelClient:
                 "size": bytes_written,
                 "content_type": resp.headers.get("content-type", "application/octet-stream")
             }
+
+    def download_section(self, course_id: int, section_query: str, output_dir: str) -> dict:
+        """Download an entire course section (markdown pages, images, and resources) in bulk.
+
+        Args:
+            course_id: Course ID (e.g. 1060).
+            section_query: Section name keyword (e.g. 'Part 1') or index.
+            output_dir: Destination folder path.
+
+        Returns:
+            dict with downloaded pages, images, resources, and output directory.
+        """
+        course = self.get_course(course_id)
+        sections = course.get("sections", [])
+
+        matched = None
+        norm = str(section_query).strip().lower()
+        for s in sections:
+            if norm in s.get("section", "").lower():
+                matched = s
+                break
+
+        if not matched and norm.isdigit():
+            idx = int(norm)
+            if 1 <= idx <= len(sections):
+                matched = sections[idx - 1]
+            elif 0 <= idx < len(sections):
+                matched = sections[idx]
+
+        if not matched:
+            names = [s.get("section") for s in sections]
+            raise ValueError(f"No section matching '{section_query}' in course {course_id}. Available: {names}")
+
+        out_path = Path(output_dir).expanduser().resolve()
+        out_path.mkdir(parents=True, exist_ok=True)
+        img_dir = out_path / "images"
+
+        res = {
+            "course": course.get("title"),
+            "section": matched.get("section"),
+            "output_dir": str(out_path),
+            "pages": [],
+            "images": [],
+            "resources": []
+        }
+
+        for item in matched.get("items", []):
+            itype = item.get("type", "")
+            iurl = item.get("url", "")
+            if not iurl:
+                continue
+
+            if itype == "page":
+                page = self.get_page_content(iurl)
+                target = out_path / page["suggested_filename"]
+                target.write_text(page["markdown"], encoding="utf-8")
+                res["pages"].append(page["suggested_filename"])
+
+                for img in page.get("images", []):
+                    img_name = img.get("suggested_filename")
+                    if img_name:
+                        img_dir.mkdir(parents=True, exist_ok=True)
+                        dest_img = img_dir / img_name
+                        if not dest_img.exists():
+                            try:
+                                self.download_file(img["url"], str(dest_img))
+                                res["images"].append(img_name)
+                            except Exception:
+                                pass
+
+            elif itype in ("resource", "file"):
+                try:
+                    dl = self.download_file(iurl, str(out_path))
+                    res["resources"].append(dl["filename"])
+                except Exception:
+                    pass
+
+        return res

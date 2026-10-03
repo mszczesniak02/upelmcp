@@ -69,6 +69,7 @@ def test_read_only_mcp_tools():
         "upel_get_page",
         "upel_get_assignment",
         "upel_download_file",
+        "upel_download_section",
         "upel_read_file"
     }
     assert tool_names == expected, f"Expected exactly {expected}, got {tool_names}"

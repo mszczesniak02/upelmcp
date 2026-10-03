@@ -78,5 +78,19 @@ def upel_read_file(file_url: str) -> dict:
     """Read a remote UPeL file/attachment into memory (returns filename and base64-encoded data)."""
     return client.read_file(file_url)
 
+@mcp.tool()
+def upel_download_section(course_id: int, section_query: str, output_dir: str) -> dict:
+    """Download an entire course section (markdown task pages, embedded images, and resource files) in one bulk operation.
+
+    Args:
+        course_id: ID of the course (e.g. 1060).
+        section_query: Section name keyword (e.g. 'Part 1') or 1-based section number.
+        output_dir: Local destination directory where all files and images will be saved.
+
+    Returns:
+        dict with course title, section name, saved pages, images, and resources.
+    """
+    return client.download_section(course_id, section_query, output_dir)
+
 if __name__ == "__main__":
     mcp.run()

@@ -33,15 +33,13 @@ Whenever invoked or asked about UPeL, **immediately check the session status fir
 - Present the sections and items clearly to the user.
 
 ## 4. Downloading & Saving Task Contents & Materials
-When the user selects tasks, pages, or files to download:
+When the user asks to download tasks, sections, or course materials:
 1. **Ask for destination path:**
-   - Ask the user where to save the files.
-   - **Default suggestion:** The current directory with a subfolder named after the course using underscores instead of spaces:
-     `./<course_name_with_underscores>/` (e.g. `./operating_systems_for_embedded_systems/`).
-2. **Text Pages & Instructions:**
-   - Call `upel_get_page(page_id_or_url="<id_or_url>")` to receive `title`, `markdown`, `suggested_filename`, and `images`.
-   - Use your native `write_to_file` tool to save the markdown file into the destination folder without spaces in the filename (e.g. `task_100_warmup.md`).
-3. **Binary Materials, Slides, PDFs & Attachments:**
-   - Call MCP tool `upel_download_file(file_url="<url>", output_path="<dest_dir_or_file>")` to stream the file directly to local disk.
-   - This prevents Base64 bloat in LLM context windows and automatically resolves the true file name and extension from HTTP Content-Disposition headers.
-   - For embedded diagram images in pages, download them into `<dest_dir>/images/` using `upel_download_file`.
+   - Ask the user where to save the files (or confirm default: `./<course_name_with_underscores>/`).
+2. **Bulk Section Download (Preferred - Only 1 Permission Prompt):**
+   - When downloading an entire section, lab, or set of tasks (e.g. "Part 1", "Getting started", "Exercises"), **always prefer calling `upel_download_section`**:
+     `upel_download_section(course_id=<id>, section_query="<section_name_or_keyword>", output_dir="<dest_path>")`
+   - **Why:** This downloads all markdown pages, diagram images (into `<output_dir>/images/`), and resource files in a **single bulk operation**. The user is prompted only once for permission instead of once per file.
+3. **Single File / Page Downloads:**
+   - For an individual file or attachment: call `upel_download_file(file_url="<url>", output_path="<dest_path>")`.
+   - For an individual web page instruction: call `upel_get_page(page_id_or_url="<id>")` and save via `write_to_file`.
