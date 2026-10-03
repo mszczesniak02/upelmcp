@@ -1,0 +1,85 @@
+# UPeL AGH MCP Server & Skill
+
+A Model Context Protocol (MCP) server and agent skill for interacting with AGH University's UPeL learning platform (Moodle).
+
+Designed with strict **separation of concerns**:
+- **MCP Server:** Read-only access to UPeL (queries courses, sections, task pages, and resources). Zero local filesystem writing.
+- **Agent:** Handles local workspace file creation explicitly using its native file-writing tools.
+
+---
+
+## 1. Quick Install
+
+Clone the repository and run the interactive installer:
+
+```bash
+git clone https://github.com/mszczesniak02/upelmcp.git
+cd upelmcp
+./install.sh
+```
+
+### What `install.sh` does:
+1. Creates an isolated Python virtual environment inside the repo (`./pyenv`).
+2. Installs dependencies (`mcp<2`, `httpx`, `beautifulsoup4`, `playwright`).
+3. Installs Playwright Chromium.
+4. **Prompts you to select your agent:**
+   - **Antigravity / Gemini CLI** (`~/.gemini/config/skills/upel/`, `~/.gemini/config/mcp_config.json`)
+   - **Claude Desktop** (`claude_desktop_config.json`)
+   - **Cursor** (`~/.cursor/mcp.json`)
+   - **Workspace local** (`.agent/skills/upel/`)
+   - **All supported agents**
+5. Installs the **skill only** to the selected agent's skills directory.
+6. Configures the MCP server to invoke the Python virtual environment located inside the cloned repository directory.
+
+---
+
+## 2. Authentication
+
+Authenticate once via AGH SSO:
+
+```bash
+./pyenv/bin/python auth.py
+```
+
+- A browser window opens to `https://upel.agh.edu.pl/my/courses.php`.
+- Complete your AGH SSO / 2FA login.
+- Once authenticated, the `MoodleSession` cookie is stored in `.session` with strict `0600` permissions.
+
+*Note:* If you skip this step, the agent will automatically detect that no active session exists on its first run and trigger the login window for you.
+
+---
+
+## 3. Available MCP Tools (Strictly Read-Only)
+
+| Tool | Parameters | Description |
+|---|---|---|
+| `upel_check_session` | *None* | Verifies if current session is active; returns user name. |
+| `upel_login` | *None* | Launches browser window to authenticate / refresh session. |
+| `upel_list_courses` | *None* | Lists all enrolled courses with IDs, titles, and URLs. |
+| `upel_get_course` | `course_id: int` | Returns course sections, activities, and task page IDs. |
+| `upel_get_page` | `page_id_or_url: str` | Reads task content, markdown text, suggested underscore filename, and image URLs into memory. |
+| `upel_get_assignment` | `assignment_id: int` | Reads assignment instructions, deadline, and submission status. |
+| `upel_read_file` | `file_url: str` | Reads remote file/attachment into memory as base64 without writing to disk. |
+
+---
+
+## 4. Agentic Workflow
+
+When working with your AI assistant:
+
+1. **Automatic Auth Check:**
+   The agent automatically calls `upel_check_session` at the start of any UPeL interaction. If unauthenticated, it opens the SSO login window via `upel_login`.
+2. **Course Selection:**
+   The agent lists enrolled courses cleanly by name with numbers (no links), e.g.:
+   ```text
+   1. [1060] Operating systems for embedded systems
+   2. [1114] Metodyki Zarządzania Projektami
+   3. [11584] Narzędzia Komputerowe w Rozwiązywaniu ...
+   ```
+3. **Course Inspection:**
+   The user selects a course, and the agent lists its sections, exercises, and tasks.
+4. **Saving Content:**
+   - The agent asks where to save the files, suggesting by default a folder named after the course with underscores:
+     `./<course_name_with_underscores>/` (e.g. `./operating_systems_for_embedded_systems/`).
+   - The agent fetches task contents into memory and uses its native file-writing tools to save `.md` files without spaces in filenames (e.g. `task_100_warmup.md`).
+   - Embedded diagrams are placed under `<dest_dir>/images/`.
