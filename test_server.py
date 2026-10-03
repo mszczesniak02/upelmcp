@@ -1,5 +1,6 @@
 import os
 import stat
+from pathlib import Path
 from auth import save_session, load_session, SESSION_FILE
 from upel_client import UpelClient, ALLOWED_HOST
 from server import mcp
@@ -67,13 +68,23 @@ def test_read_only_mcp_tools():
         "upel_get_course",
         "upel_get_page",
         "upel_get_assignment",
+        "upel_download_file",
         "upel_read_file"
     }
     assert tool_names == expected, f"Expected exactly {expected}, got {tool_names}"
 
-    # Verify no file-writing tools exist
-    assert "upel_download_file" not in tool_names
-    assert "upel_save_page_markdown" not in tool_names
+def test_filename_extraction_and_download():
+    client = UpelClient()
+    session = client.check_session()
+    if session.get("authenticated"):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Download course 1060 introduction presentation (PDF)
+            res = client.download_file("https://upel.agh.edu.pl/mod/resource/view.php?id=275112", tmpdir)
+            assert res["filename"] == "osfes_intro_presentation_2026.pdf", f"Unexpected filename: {res['filename']}"
+            assert res["size"] > 100000
+            assert Path(res["file_path"]).exists()
+            assert Path(res["file_path"]).stat().st_size == res["size"]
 
 def test_live_read_operations():
     client = UpelClient()
@@ -115,7 +126,8 @@ if __name__ == "__main__":
         test_read_only_mcp_tools()
         test_session_reloading()
         test_live_read_operations()
-        print("All read-only tests and checks passed!")
+        test_filename_extraction_and_download()
+        print("All tests and checks passed!")
     finally:
         if saved_initial is not None:
             SESSION_FILE.write_text(saved_initial)

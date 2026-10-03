@@ -1,5 +1,7 @@
 import base64
+import mimetypes
 import re
+import urllib.parse
 from pathlib import Path
 from urllib.parse import urlparse
 import httpx
@@ -10,7 +12,13 @@ BASE_URL = "https://upel.agh.edu.pl"
 ALLOWED_HOST = "upel.agh.edu.pl"
 
 def _slug(text: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9_\-\.]+', '_', text).strip('_')
+    return re.sub(r'[^\w\.-]+', '_', text).strip('_')
+
+def _clean_filename(name: str) -> str:
+    p = Path(name)
+    stem_clean = _slug(p.stem) or "file"
+    suffix = p.suffix.lower()
+    return f"{stem_clean}{suffix}"
 
 class UpelClient:
     def __init__(self, session_cookie: str | None = None):
@@ -228,6 +236,39 @@ class UpelClient:
             "url": url
         }
 
+    def _extract_filename(self, resp: httpx.Response, fallback_url: str = "") -> str:
+        # 1. Content-Disposition header
+        cd = resp.headers.get("content-disposition", "")
+        if cd:
+            match_star = re.search(r"filename\*\s*=\s*(?:UTF-8''|utf-8'')([^;\s]+)", cd, re.IGNORECASE)
+            if match_star:
+                fname = urllib.parse.unquote(match_star.group(1).strip("\"'"))
+                if fname:
+                    return _clean_filename(fname)
+            match = re.search(r'filename\s*=\s*"([^"]+)"|filename\s*=\s*([^\s;]+)', cd, re.IGNORECASE)
+            if match:
+                fname = (match.group(1) or match.group(2)).strip("\"'")
+                if fname:
+                    return _clean_filename(fname)
+
+        # 2. Redirected final URL
+        final_path = Path(urlparse(str(resp.url)).path)
+        if final_path.suffix and final_path.name != "view.php":
+            return _clean_filename(final_path.name)
+
+        # 3. Initial URL path
+        if fallback_url:
+            init_path = Path(urlparse(fallback_url).path)
+            if init_path.suffix and init_path.name != "view.php":
+                return _clean_filename(init_path.name)
+
+        # 4. Content-Type extension fallback
+        ct = resp.headers.get("content-type", "").split(";")[0].strip()
+        ext = mimetypes.guess_extension(ct) or ".bin"
+        if ext == ".jpe":
+            ext = ".jpg"
+        return f"downloaded_file{ext}"
+
     def read_file(self, file_url: str) -> dict:
         """Pure read operation: downloads resource into memory as base64 without writing to disk."""
         self._validate_upel_url(file_url)
@@ -236,9 +277,8 @@ class UpelClient:
         self._ensure_authenticated(resp)
         resp.raise_for_status()
 
-        content_type = resp.headers.get("Content-Type", "application/octet-stream")
-        parsed = urlparse(file_url)
-        clean_name = _slug(Path(parsed.path).name) or "downloaded_file"
+        content_type = resp.headers.get("content-type", "application/octet-stream")
+        clean_name = self._extract_filename(resp, file_url)
 
         return {
             "filename": clean_name,
@@ -246,3 +286,44 @@ class UpelClient:
             "size": len(resp.content),
             "data_base64": base64.b64encode(resp.content).decode("ascii")
         }
+
+    def download_file(self, file_url: str, output_path: str) -> dict:
+        """Download remote resource from UPeL directly to a local target file or directory.
+
+        Args:
+            file_url: UPeL URL of the resource/file.
+            output_path: Destination file path or directory on local disk.
+
+        Returns:
+            dict containing file_path, filename, size, and content_type.
+        """
+        self._validate_upel_url(file_url)
+        self._ensure_session()
+
+        dest_path = Path(output_path).expanduser().resolve()
+
+        with self.client.stream("GET", file_url) as resp:
+            self._ensure_authenticated(resp)
+            resp.raise_for_status()
+
+            resolved_filename = self._extract_filename(resp, file_url)
+
+            if dest_path.is_dir() or str(output_path).endswith(("/", "\\")):
+                dest_file = dest_path / resolved_filename
+            else:
+                dest_file = dest_path
+
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+
+            bytes_written = 0
+            with open(dest_file, "wb") as f:
+                for chunk in resp.iter_bytes(chunk_size=65536):
+                    f.write(chunk)
+                    bytes_written += len(chunk)
+
+            return {
+                "file_path": str(dest_file),
+                "filename": dest_file.name,
+                "size": bytes_written,
+                "content_type": resp.headers.get("content-type", "application/octet-stream")
+            }

@@ -111,32 +111,13 @@ if [ -z "$AGENT_CHOICE" ]; then
 fi
 
 case "$AGENT_CHOICE" in
-    1|antigravity|gemini)
-        register_antigravity
-        ;;
-    2|claude|claude-desktop)
-        register_claude_desktop
-        ;;
-    3|cursor)
-        register_cursor
-        ;;
-    4|kiro|kiro-chat)
-        register_kiro
-        ;;
-    5|workspace|local)
-        register_workspace
-        ;;
-    6|all)
-        register_antigravity
-        register_claude_desktop
-        register_cursor
-        register_kiro
-        register_workspace
-        ;;
-    *)
-        echo "Unknown choice: $AGENT_CHOICE. Installing to Antigravity as default..."
-        register_antigravity
-        ;;
+    1|antigravity|gemini)   register_antigravity ;;
+    2|claude|claude-desktop) register_claude_desktop ;;
+    3|cursor)               register_cursor ;;
+    4|kiro|kiro-chat)       register_kiro ;;
+    5|workspace|local)      register_workspace ;;
+    6|all)                  register_antigravity; register_claude_desktop; register_cursor; register_kiro; register_workspace ;;
+    *)                      echo "Defaulting to Antigravity..."; register_antigravity ;;
 esac
 
 echo ""

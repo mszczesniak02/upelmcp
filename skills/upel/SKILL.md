@@ -32,15 +32,16 @@ Whenever invoked or asked about UPeL, **immediately check the session status fir
 - Call `upel_get_course(course_id=<id>)` to retrieve sections, tasks, and page IDs.
 - Present the sections and items clearly to the user.
 
-## 4. Downloading & Saving Task Contents
-When the user selects tasks or pages to download:
+## 4. Downloading & Saving Task Contents & Materials
+When the user selects tasks, pages, or files to download:
 1. **Ask for destination path:**
    - Ask the user where to save the files.
    - **Default suggestion:** The current directory with a subfolder named after the course using underscores instead of spaces:
      `./<course_name_with_underscores>/` (e.g. `./operating_systems_for_embedded_systems/`).
-2. **Fetch and Save:**
+2. **Text Pages & Instructions:**
    - Call `upel_get_page(page_id_or_url="<id_or_url>")` to receive `title`, `markdown`, `suggested_filename`, and `images`.
-   - The MCP server is strictly read-only and does not write to disk.
-   - **The agent must use its native file writing tool (`write_to_file`)** to save the markdown file into the destination folder.
-   - Ensure the filename has no spaces (e.g. `task_100_warmup.md`).
-   - If there are diagram images in `images`, call `upel_read_file(file_url="...")` and save them under `<dest_dir>/images/<image_name>`.
+   - Use your native `write_to_file` tool to save the markdown file into the destination folder without spaces in the filename (e.g. `task_100_warmup.md`).
+3. **Binary Materials, Slides, PDFs & Attachments:**
+   - Call MCP tool `upel_download_file(file_url="<url>", output_path="<dest_dir_or_file>")` to stream the file directly to local disk.
+   - This prevents Base64 bloat in LLM context windows and automatically resolves the true file name and extension from HTTP Content-Disposition headers.
+   - For embedded diagram images in pages, download them into `<dest_dir>/images/` using `upel_download_file`.

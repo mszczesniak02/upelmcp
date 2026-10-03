@@ -61,6 +61,19 @@ def upel_get_assignment(assignment_id: int) -> dict:
     return client.get_assignment(assignment_id)
 
 @mcp.tool()
+def upel_download_file(file_url: str, output_path: str) -> dict:
+    """Download a file or learning resource from UPeL directly to the local filesystem.
+
+    Args:
+        file_url: UPeL URL of the resource or file (e.g. https://upel.agh.edu.pl/mod/resource/view.php?id=...).
+        output_path: Target directory or file path on local disk.
+
+    Returns:
+        dict with saved file_path, filename, size, and content_type.
+    """
+    return client.download_file(file_url, output_path)
+
+@mcp.tool()
 def upel_read_file(file_url: str) -> dict:
     """Read a remote UPeL file/attachment into memory (returns filename and base64-encoded data)."""
     return client.read_file(file_url)

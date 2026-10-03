@@ -159,11 +159,9 @@ def login_browser():
         print("Login successful! MoodleSession captured.")
 
 if __name__ == "__main__":
-    if len(sys.argv) > 2 and sys.argv[1] == "--cookie":
-        save_session(sys.argv[2])
-    elif len(sys.argv) > 1 and sys.argv[1] == "--help":
-        print("Usage:")
-        print("  python auth.py                 # Open browser for AGH SSO login")
-        print("  python auth.py --cookie <val>  # Manually set MoodleSession cookie")
+    if "--cookie" in sys.argv and len(sys.argv) > sys.argv.index("--cookie") + 1:
+        save_session(sys.argv[sys.argv.index("--cookie") + 1])
+    elif "-h" in sys.argv or "--help" in sys.argv:
+        print("Usage: python auth.py [--cookie <token>]")
     else:
         login_browser()
