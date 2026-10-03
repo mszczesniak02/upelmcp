@@ -1,0 +1,6 @@
+.session
+pyenv/
+__pycache__/
+*.pyc
+mcp_config.json
+plan.md
