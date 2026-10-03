@@ -60,6 +60,9 @@ Authenticate once via AGH SSO:
 - Complete your AGH SSO / 2FA login.
 - Once authenticated, the `MoodleSession` cookie is stored in `.session` with strict `0600` permissions.
 
+> [!IMPORTANT]
+> **Security & Responsibility:** This tool uses your own AGH SSO session and operates strictly with your existing UPeL permissions. Never share your `.session` file or AGH session cookies with anyone. You are responsible for ensuring that your use of this tool complies with the rules and regulations applicable to your AGH account.
+
 *Note:* If you skip this step, the agent will automatically detect that no active session exists on its first run and trigger the login window for you.
 
 ---
@@ -98,3 +101,33 @@ When working with your AI assistant:
      `./<course_name_with_underscores>/` (e.g. `./operating_systems_for_embedded_systems/`).
    - The agent fetches task contents into memory and uses its native file-writing tools to save `.md` files without spaces in filenames (e.g. `task_100_warmup.md`).
    - Embedded diagrams are placed under `<dest_dir>/images/`.
+
+---
+
+## Disclaimer
+
+> [!CAUTION]
+> **Use at your own risk.**
+
+This project is an unofficial, community-developed tool for interacting with the AGH UPeL platform. It is not affiliated with, endorsed by, or supported by AGH University of Krakow (*Akademia Górniczo-Hutnicza im. Stanisława Staszica w Krakowie*). All trademarks, service marks, and institution names ("AGH", "UPeL", "Moodle") belong to their respective holders and are referenced strictly for identification and descriptive purposes. Their use does not imply any affiliation, sponsorship, or endorsement.
+
+The software automates access to UPeL using the authenticated user's own AGH account and permissions. It does not provide access to data or materials that the user could not access through UPeL normally.
+
+By using this software, you are responsible for:
+- Complying with AGH's regulations, policies, and terms applicable to your account and use of UPeL;
+- Using the software only with an account you are authorized to use;
+- Protecting your AGH credentials, session cookies, and `.session` data;
+- Ensuring that your use of the software does not adversely affect, disrupt, or overload UPeL or other users;
+- Complying with applicable laws and regulations.
+
+The author and contributors are not responsible for any consequences resulting from the use, misuse, modification, or unavailability of this software, including account restrictions, loss of access, data loss, or other consequences arising from the user's use of the software.
+
+The project is provided **"as is"**, without guarantees regarding continued compatibility with UPeL. UPeL may change its authentication, API, website structure, or other functionality at any time, which may cause this software to stop working.
+
+Do not use this software to bypass authentication, access controls, rate limits, or other security mechanisms.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
